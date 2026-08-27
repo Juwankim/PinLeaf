@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		033896EC303E783B0063A61F /* MySideNotes.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MySideNotes.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		033896EC303E783B0063A61F /* PinLeaf.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PinLeaf.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -40,7 +40,7 @@
 		033896ED303E783B0063A61F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				033896EC303E783B0063A61F /* MySideNotes.app */,
+				033896EC303E783B0063A61F /* PinLeaf.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,9 +48,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		033896EB303E783B0063A61F /* MySideNotes */ = {
+		033896EB303E783B0063A61F /* PinLeaf */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 033896F7303E783B0063A61F /* Build configuration list for PBXNativeTarget "MySideNotes" */;
+			buildConfigurationList = 033896F7303E783B0063A61F /* Build configuration list for PBXNativeTarget "PinLeaf" */;
 			buildPhases = (
 				033896E8303E783B0063A61F /* Sources */,
 				033896E9303E783B0063A61F /* Frameworks */,
@@ -63,11 +63,11 @@
 			fileSystemSynchronizedGroups = (
 				033896EE303E783B0063A61F /* MySideNotes */,
 			);
-			name = MySideNotes;
+			name = PinLeaf;
 			packageProductDependencies = (
 			);
-			productName = MySideNotes;
-			productReference = 033896EC303E783B0063A61F /* MySideNotes.app */;
+			productName = PinLeaf;
+			productReference = 033896EC303E783B0063A61F /* PinLeaf.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -99,7 +99,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				033896EB303E783B0063A61F /* MySideNotes */,
+				033896EB303E783B0063A61F /* PinLeaf */,
 			);
 		};
 /* End PBXProject section */
@@ -255,6 +255,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "PinLeaf – Sticky Notes";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -262,7 +264,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = SSG.MySideNotes;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = PinLeaf;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -285,6 +287,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "PinLeaf – Sticky Notes";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -292,7 +296,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = SSG.MySideNotes;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = PinLeaf;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -315,7 +319,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		033896F7303E783B0063A61F /* Build configuration list for PBXNativeTarget "MySideNotes" */ = {
+		033896F7303E783B0063A61F /* Build configuration list for PBXNativeTarget "PinLeaf" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				033896F8303E783B0063A61F /* Debug */,
