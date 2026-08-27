@@ -132,14 +132,3 @@ MySideNotes/
 └── PanelSettingsView.swift              # 설정 화면
 ```
 
-## 저장소에 포함하지 않는 파일
-
-Xcode의 사용자별 설정과 빌드 결과는 Git에 포함하지 않는 것을 권장합니다.
-
-```gitignore
-.DS_Store
-DerivedData/
-build/
-*.xcuserstate
-xcuserdata/
-```

@@ -54,7 +54,7 @@ struct FloatingNoteView: View {
                     switch displayMode {
                     case .edit:
                         TextEditor(text: $bodyDraft)
-                            .font(.system(size: 13 * zoomScale, design: .monospaced))
+                            .font(.system(size: 14 * zoomScale))
                             .scrollContentBackground(.hidden)
                             .padding(10)
                             .background(Color.white.opacity(0.46))
