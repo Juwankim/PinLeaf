@@ -30,17 +30,35 @@ struct ContentView: View {
         }
         .padding(.vertical, 8)
         .padding(panelState.edge == .right ? .leading : .trailing, 8)
+        .overlay(alignment: collapsedIndicatorAlignment) {
+            if panelState.isPanelCollapsed {
+                Capsule(style: .continuous)
+                    .fill(Color.accentColor.opacity(0.78))
+                    .frame(width: CGFloat(panelState.collapsedPeekWidth))
+                    .padding(.vertical, 12)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
         .environment(\.colorScheme, .light)
+    }
+
+    private var collapsedIndicatorAlignment: Alignment {
+        panelState.edge == .left ? .trailing : .leading
     }
 }
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         let store = NoteStore()
+        let panelState = PanelPresentationState()
         ContentView(
-            panelState: PanelPresentationState(),
+            panelState: panelState,
             noteStore: store,
-            floatingPanels: FloatingNotePanelManager(store: store),
+            floatingPanels: FloatingNotePanelManager(
+                store: store,
+                panelState: panelState
+            ),
             onOpenSettings: {},
             onQuit: {}
         )

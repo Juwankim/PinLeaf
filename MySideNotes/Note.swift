@@ -47,6 +47,9 @@ struct Note: Codable, Identifiable, Hashable, Sendable {
     var zoomScale: Double?
     var color: NoteColor?
     var displayMode: NoteDisplayMode?
+    /// Whether the floating window keeps itself above other windows. `nil` means
+    /// the default, which is to stay on top.
+    var isAlwaysOnTop: Bool?
 
     init(
         id: UUID = UUID(),
@@ -57,7 +60,8 @@ struct Note: Codable, Identifiable, Hashable, Sendable {
         windowFrame: NoteWindowFrame? = nil,
         zoomScale: Double? = nil,
         color: NoteColor? = nil,
-        displayMode: NoteDisplayMode? = nil
+        displayMode: NoteDisplayMode? = nil,
+        isAlwaysOnTop: Bool? = nil
     ) {
         self.id = id
         self.title = title
@@ -68,6 +72,7 @@ struct Note: Codable, Identifiable, Hashable, Sendable {
         self.zoomScale = zoomScale
         self.color = color
         self.displayMode = displayMode
+        self.isAlwaysOnTop = isAlwaysOnTop
     }
 
     var displayTitle: String {
@@ -95,5 +100,9 @@ struct Note: Codable, Identifiable, Hashable, Sendable {
 
     var effectiveDisplayMode: NoteDisplayMode {
         displayMode ?? .edit
+    }
+
+    var effectiveIsAlwaysOnTop: Bool {
+        isAlwaysOnTop ?? true
     }
 }

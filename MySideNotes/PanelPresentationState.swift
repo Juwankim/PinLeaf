@@ -36,44 +36,51 @@ enum NoteListRowSize: String, CaseIterable, Identifiable {
 final class PanelPresentationState: ObservableObject {
     private static let pinnedDefaultsKey = "panel.isPinned"
     private static let edgeDefaultsKey = "panel.edge"
-    private static let inactiveOpacityDefaultsKey = "panel.inactiveOpacity"
-    private static let visibleFractionDefaultsKey = "panel.collapsedVisibleFraction"
+    private static let peekWidthDefaultsKey = "panel.collapsedPeekWidth"
     private static let panelWidthDefaultsKey = "panel.width"
     private static let showsDockIconDefaultsKey = "application.showsDockIcon"
     private static let noteListDisplayLimitDefaultsKey = "panel.noteList.displayLimit"
+    private static let defaultNoteColorDefaultsKey = "panel.noteList.defaultColor"
+    private static let colorNamesDefaultsKey = "panel.noteColor.names"
+    static let maximumColorNameLength = 10
 
     @Published private(set) var isPinned: Bool
     @Published private(set) var edge: ScreenEdge
-    @Published private(set) var inactiveOpacity: Double
-    @Published private(set) var collapsedVisibleFraction: Double
+    /// How many points of the panel stay visible at the screen edge when collapsed.
+    @Published private(set) var collapsedPeekWidth: Double
     @Published private(set) var panelWidth: Double
     @Published private(set) var showsDockIcon: Bool
     @Published private(set) var noteListDisplayLimit: NoteListDisplayLimit
+    @Published private(set) var defaultNoteColor: NoteColor
+    @Published private(set) var isPanelCollapsed = true
+    /// User-provided names that override `NoteColor.displayName`; only holds
+    /// trimmed, non-empty entries that actually differ from the built-in name.
+    @Published private(set) var colorNames: [NoteColor: String]
 
     private let defaults: UserDefaults
     private let defaultEdge: ScreenEdge
-    private let defaultInactiveOpacity: Double
-    private let defaultCollapsedVisibleFraction: Double
+    private let defaultCollapsedPeekWidth: Double
     private let defaultPanelWidth: Double
     private let defaultShowsDockIcon: Bool
     private let defaultNoteListDisplayLimit: NoteListDisplayLimit
+    private let fallbackNoteColor: NoteColor
 
     init(
         defaults: UserDefaults = .standard,
         defaultEdge: ScreenEdge = .left,
-        defaultInactiveOpacity: Double = 0.42,
-        defaultCollapsedVisibleFraction: Double = 0.10,
+        defaultCollapsedPeekWidth: Double = 4,
         defaultPanelWidth: Double = 280,
         defaultShowsDockIcon: Bool = true,
-        defaultNoteListDisplayLimit: NoteListDisplayLimit = .fourteen
+        defaultNoteListDisplayLimit: NoteListDisplayLimit = .fourteen,
+        defaultNoteColor: NoteColor = .yellow
     ) {
         self.defaults = defaults
         self.defaultEdge = defaultEdge
-        self.defaultInactiveOpacity = defaultInactiveOpacity
-        self.defaultCollapsedVisibleFraction = defaultCollapsedVisibleFraction
+        self.defaultCollapsedPeekWidth = defaultCollapsedPeekWidth
         self.defaultPanelWidth = defaultPanelWidth
         self.defaultShowsDockIcon = defaultShowsDockIcon
         self.defaultNoteListDisplayLimit = defaultNoteListDisplayLimit
+        self.fallbackNoteColor = defaultNoteColor
         isPinned = defaults.bool(forKey: Self.pinnedDefaultsKey)
         showsDockIcon = Self.savedShowsDockIcon(
             defaults: defaults,
@@ -84,15 +91,10 @@ final class PanelPresentationState: ObservableObject {
             .flatMap(ScreenEdge.init(rawValue:))
         edge = storedEdge ?? defaultEdge
 
-        let storedOpacity = defaults.object(forKey: Self.inactiveOpacityDefaultsKey) == nil
-            ? defaultInactiveOpacity
-            : defaults.double(forKey: Self.inactiveOpacityDefaultsKey)
-        inactiveOpacity = min(max(storedOpacity, 0.10), 0.90)
-
-        let storedVisibleFraction = defaults.object(forKey: Self.visibleFractionDefaultsKey) == nil
-            ? defaultCollapsedVisibleFraction
-            : defaults.double(forKey: Self.visibleFractionDefaultsKey)
-        collapsedVisibleFraction = min(max(storedVisibleFraction, 0.05), 0.30)
+        let storedPeekWidth = defaults.object(forKey: Self.peekWidthDefaultsKey) == nil
+            ? defaultCollapsedPeekWidth
+            : defaults.double(forKey: Self.peekWidthDefaultsKey)
+        collapsedPeekWidth = min(max(storedPeekWidth, 2), 20)
 
         let storedPanelWidth = defaults.object(forKey: Self.panelWidthDefaultsKey) == nil
             ? defaultPanelWidth
@@ -105,6 +107,31 @@ final class PanelPresentationState: ObservableObject {
                 rawValue: defaults.integer(forKey: Self.noteListDisplayLimitDefaultsKey)
             )
         noteListDisplayLimit = storedDisplayLimit ?? defaultNoteListDisplayLimit
+
+        let storedNoteColor = defaults.string(forKey: Self.defaultNoteColorDefaultsKey)
+            .flatMap(NoteColor.init(rawValue:))
+        self.defaultNoteColor = storedNoteColor ?? defaultNoteColor
+
+        let storedColorNames = defaults.dictionary(forKey: Self.colorNamesDefaultsKey)
+            as? [String: String] ?? [:]
+        colorNames = Self.sanitizedColorNames(from: storedColorNames)
+    }
+
+    private static func sanitizedColorNames(
+        from rawNames: [String: String]
+    ) -> [NoteColor: String] {
+        var result: [NoteColor: String] = [:]
+        for (rawColor, rawName) in rawNames {
+            guard let color = NoteColor(rawValue: rawColor) else { continue }
+            let name = String(
+                rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .prefix(maximumColorNameLength)
+            )
+            if !name.isEmpty, name != color.displayName {
+                result[color] = name
+            }
+        }
+        return result
     }
 
     static func savedShowsDockIcon(
@@ -128,18 +155,11 @@ final class PanelPresentationState: ObservableObject {
         defaults.set(edge.rawValue, forKey: Self.edgeDefaultsKey)
     }
 
-    func setInactiveOpacity(_ opacity: Double) {
-        let clampedOpacity = min(max(opacity, 0.10), 0.90)
-        guard inactiveOpacity != clampedOpacity else { return }
-        inactiveOpacity = clampedOpacity
-        defaults.set(clampedOpacity, forKey: Self.inactiveOpacityDefaultsKey)
-    }
-
-    func setCollapsedVisibleFraction(_ fraction: Double) {
-        let clampedFraction = min(max(fraction, 0.05), 0.30)
-        guard collapsedVisibleFraction != clampedFraction else { return }
-        collapsedVisibleFraction = clampedFraction
-        defaults.set(clampedFraction, forKey: Self.visibleFractionDefaultsKey)
+    func setCollapsedPeekWidth(_ width: Double) {
+        let clampedWidth = (min(max(width, 2), 20) * 10).rounded() / 10
+        guard collapsedPeekWidth != clampedWidth else { return }
+        collapsedPeekWidth = clampedWidth
+        defaults.set(clampedWidth, forKey: Self.peekWidthDefaultsKey)
     }
 
     func setPanelWidth(_ width: Double) {
@@ -161,12 +181,58 @@ final class PanelPresentationState: ObservableObject {
         defaults.set(limit.rawValue, forKey: Self.noteListDisplayLimitDefaultsKey)
     }
 
+    func setDefaultNoteColor(_ color: NoteColor) {
+        guard defaultNoteColor != color else { return }
+        defaultNoteColor = color
+        defaults.set(color.rawValue, forKey: Self.defaultNoteColorDefaultsKey)
+    }
+
+    /// Transient window state used to show the slim running indicator while the
+    /// panel itself is outside the screen. This value is intentionally not saved.
+    func setPanelCollapsed(_ isCollapsed: Bool) {
+        guard isPanelCollapsed != isCollapsed else { return }
+        isPanelCollapsed = isCollapsed
+    }
+
+    /// The name to show for a color: the user's override when set, otherwise the
+    /// built-in `NoteColor.displayName`.
+    func colorName(for color: NoteColor) -> String {
+        colorNames[color] ?? color.displayName
+    }
+
+    func setColorName(_ name: String, for color: NoteColor) {
+        let trimmed = String(
+            name.trimmingCharacters(in: .whitespacesAndNewlines)
+                .prefix(Self.maximumColorNameLength)
+        )
+        let resolved: String? = (trimmed.isEmpty || trimmed == color.displayName)
+            ? nil
+            : trimmed
+        guard colorNames[color] != resolved else { return }
+        colorNames[color] = resolved
+        persistColorNames()
+    }
+
+    private func persistColorNames() {
+        guard !colorNames.isEmpty else {
+            defaults.removeObject(forKey: Self.colorNamesDefaultsKey)
+            return
+        }
+        let rawNames = Dictionary(
+            uniqueKeysWithValues: colorNames.map { ($0.key.rawValue, $0.value) }
+        )
+        defaults.set(rawNames, forKey: Self.colorNamesDefaultsKey)
+    }
+
     func resetPanelSettings() {
         setEdge(defaultEdge)
-        setInactiveOpacity(defaultInactiveOpacity)
-        setCollapsedVisibleFraction(defaultCollapsedVisibleFraction)
+        setCollapsedPeekWidth(defaultCollapsedPeekWidth)
         setPanelWidth(defaultPanelWidth)
         setShowsDockIcon(defaultShowsDockIcon)
         setNoteListDisplayLimit(defaultNoteListDisplayLimit)
+        setDefaultNoteColor(fallbackNoteColor)
+        for color in Array(colorNames.keys) {
+            setColorName("", for: color)
+        }
     }
 }

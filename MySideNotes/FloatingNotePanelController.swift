@@ -20,6 +20,7 @@ final class FloatingNotePanelController: NSWindowController, NSWindowDelegate {
     init(
         noteID: Note.ID,
         store: NoteStore,
+        panelState: PanelPresentationState,
         initialFrame: NSRect,
         onDelete: @escaping () -> Void
     ) {
@@ -39,8 +40,9 @@ final class FloatingNotePanelController: NSWindowController, NSWindowDelegate {
         )
         // `initialFrame` is a saved window frame, not a content rectangle.
         panel.setFrame(initialFrame, display: false)
-        panel.level = .floating
-        panel.isFloatingPanel = true
+        let startsAlwaysOnTop = store.note(withID: noteID)?.effectiveIsAlwaysOnTop ?? true
+        panel.isFloatingPanel = startsAlwaysOnTop
+        panel.level = startsAlwaysOnTop ? .floating : .normal
         panel.becomesKeyOnlyIfNeeded = false
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
@@ -55,6 +57,7 @@ final class FloatingNotePanelController: NSWindowController, NSWindowDelegate {
         let rootView = FloatingNoteView(
             noteID: noteID,
             store: store,
+            panelState: panelState,
             onDelete: onDelete
         )
             .environment(\.colorScheme, .light)
@@ -95,9 +98,23 @@ final class FloatingNotePanelController: NSWindowController, NSWindowDelegate {
                 notes.first(where: { $0.id == noteID })
             }
             .sink { [weak panel] note in
-                panel?.title = note.displayTitle
-                panel?.backgroundColor = note.effectiveColor.appKitBackgroundColor
+                guard let panel else { return }
+                panel.title = note.displayTitle
+                panel.backgroundColor = note.effectiveColor.appKitBackgroundColor
+                Self.applyAlwaysOnTop(note.effectiveIsAlwaysOnTop, to: panel)
             }
+    }
+
+    /// Keeps the window above other windows only while the note opts in. When it
+    /// opts out the window drops to the normal level so other windows can cover it.
+    private static func applyAlwaysOnTop(_ isAlwaysOnTop: Bool, to panel: NSPanel) {
+        if panel.isFloatingPanel != isAlwaysOnTop {
+            panel.isFloatingPanel = isAlwaysOnTop
+        }
+        let targetLevel: NSWindow.Level = isAlwaysOnTop ? .floating : .normal
+        if panel.level != targetLevel {
+            panel.level = targetLevel
+        }
     }
 
     required init?(coder: NSCoder) {

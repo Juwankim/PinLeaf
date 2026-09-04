@@ -5,6 +5,20 @@
 
 import SwiftUI
 
+enum NoteColorFilter: Hashable {
+    case all
+    case color(NoteColor)
+
+    func matches(_ note: Note) -> Bool {
+        switch self {
+        case .all:
+            return true
+        case .color(let color):
+            return note.effectiveColor == color
+        }
+    }
+}
+
 struct NoteWorkspaceView: View {
     @ObservedObject var store: NoteStore
     @ObservedObject var panelState: PanelPresentationState
@@ -12,11 +26,16 @@ struct NoteWorkspaceView: View {
     let onOpenSettings: () -> Void
     let onQuit: () -> Void
 
+    @State private var colorFilter: NoteColorFilter = .all
+
     var body: some View {
         VStack(spacing: 0) {
             NoteListToolbar(
                 panelState: panelState,
                 floatingPanels: floatingPanels,
+                colorFilter: $colorFilter,
+                notes: store.notes,
+                onAddNote: addNote,
                 onOpenSettings: onOpenSettings,
                 onQuit: onQuit
             )
@@ -25,11 +44,16 @@ struct NoteWorkspaceView: View {
 
             if store.notes.isEmpty {
                 emptyState
+            } else if displayedNotes.isEmpty {
+                noMatchesState
             } else {
                 noteList
             }
         }
         .background(Color(red: 0.965, green: 0.955, blue: 0.905))
+        .onChange(of: colorFilter) { _, newFilter in
+            floatingPanels.applyColorFilter(newFilter)
+        }
     }
 
     private var noteList: some View {
@@ -54,8 +78,28 @@ struct NoteWorkspaceView: View {
 
     private var noteListRowSize: NoteListRowSize { .regular }
 
+    /// Uses the color that is currently being filtered on, so a note added while
+    /// browsing one color stays in view; falls back to the configured default
+    /// when the list shows every color.
+    private var newNoteColor: NoteColor {
+        switch colorFilter {
+        case .all:
+            return panelState.defaultNoteColor
+        case .color(let color):
+            return color
+        }
+    }
+
+    private func addNote() {
+        floatingPanels.addAndShowNote(color: newNoteColor)
+    }
+
+    private var filteredNotes: [Note] {
+        store.notes.filter { colorFilter.matches($0) }
+    }
+
     private var displayedNotes: [Note] {
-        Array(store.notes.prefix(panelState.noteListDisplayLimit.maximumCount))
+        Array(filteredNotes.prefix(panelState.noteListDisplayLimit.maximumCount))
     }
 
     private var emptyState: some View {
@@ -64,7 +108,17 @@ struct NoteWorkspaceView: View {
         } description: {
             Text("추가 버튼으로 플로팅 노트를 만들어 보세요.")
         } actions: {
-            Button("노트 추가", action: floatingPanels.addAndShowNote)
+            Button("노트 추가", action: addNote)
+        }
+    }
+
+    private var noMatchesState: some View {
+        ContentUnavailableView {
+            Label("메모 없음", systemImage: "line.3.horizontal.decrease.circle")
+        } description: {
+            Text("선택한 색상의 메모가 없습니다.")
+        } actions: {
+            Button("전체 색상 보기") { colorFilter = .all }
         }
     }
 }
@@ -72,6 +126,9 @@ struct NoteWorkspaceView: View {
 private struct NoteListToolbar: View {
     @ObservedObject var panelState: PanelPresentationState
     @ObservedObject var floatingPanels: FloatingNotePanelManager
+    @Binding var colorFilter: NoteColorFilter
+    let notes: [Note]
+    let onAddNote: () -> Void
     let onOpenSettings: () -> Void
     let onQuit: () -> Void
 
@@ -86,9 +143,11 @@ private struct NoteListToolbar: View {
             .accessibilityLabel("PinLeaf 종료")
             .help("PinLeaf 종료 (⌘Q)")
 
+            colorFilterPicker
+
             Spacer()
 
-            Button(action: floatingPanels.addAndShowNote) {
+            Button(action: onAddNote) {
                 Image(systemName: "plus")
             }
             .keyboardShortcut("n", modifiers: .command)
@@ -120,11 +179,54 @@ private struct NoteListToolbar: View {
             .help("패널 설정")
         }
         .buttonStyle(.borderless)
-        .font(.system(size: 17, weight: .medium))
+        .font(.system(size: 16, weight: .medium))
         .controlSize(.regular)
         .padding(.horizontal, 10)
-        .frame(height: 44)
+        .frame(height: 40)
         .background(Color.white.opacity(0.52))
+    }
+
+    private var colorFilterPicker: some View {
+        Picker("색상 필터", selection: $colorFilter) {
+            Label {
+                Text("(\(notes.count))")
+            } icon: {
+                Image(systemName: "circle.hexagongrid.fill")
+            }
+            .accessibilityLabel(Text("전체 \(notes.count)개"))
+            .tag(NoteColorFilter.all)
+
+            ForEach(NoteColor.allCases) { color in
+                Label {
+                    Text(menuLabel(for: color))
+                } icon: {
+                    Image(nsImage: color.menuSwatchImage)
+                }
+                .accessibilityLabel(
+                    Text("\(panelState.colorName(for: color)) \(count(for: color))개")
+                )
+                .tag(NoteColorFilter.color(color))
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .font(.system(size: 12))
+        .frame(width: 96)
+        .help("색상으로 메모 필터")
+    }
+
+    /// Pairs the user's color name with its memo count ("중요 (3)"); shows just the
+    /// count when no name has been set for the color.
+    private func menuLabel(for color: NoteColor) -> String {
+        let count = count(for: color)
+        if let name = panelState.colorNames[color] {
+            return "\(name) (\(count))"
+        }
+        return "(\(count))"
+    }
+
+    private func count(for color: NoteColor) -> Int {
+        notes.filter { $0.effectiveColor == color }.count
     }
 }
 

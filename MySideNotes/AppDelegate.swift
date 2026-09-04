@@ -18,8 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let panelConfiguration = EdgePanelConfiguration(
             edge: .left,
-            collapsedVisibleFraction: 0.10,
-            inactiveOpacity: 0.42
+            collapsedPeekWidth: 4
         )
         let controller = EdgePanelController(configuration: panelConfiguration)
         controller.start()

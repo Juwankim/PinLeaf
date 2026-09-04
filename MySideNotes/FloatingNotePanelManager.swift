@@ -12,10 +12,22 @@ final class FloatingNotePanelManager: ObservableObject {
     @Published private(set) var restorableNoteIDs: Set<Note.ID> = []
 
     private let store: NoteStore
+    private let panelState: PanelPresentationState
     private var panelControllers: [Note.ID: FloatingNotePanelController] = [:]
+    private var notesCancellable: AnyCancellable?
+    /// The notes the user has chosen to keep visible. A color filter only changes
+    /// which of these windows are currently on-screen; `.all` shows their union.
+    private var desiredVisibleNoteIDs: Set<Note.ID> = []
+    private var activeColorFilter: NoteColorFilter = .all
 
-    init(store: NoteStore) {
+    init(store: NoteStore, panelState: PanelPresentationState) {
         self.store = store
+        self.panelState = panelState
+        notesCancellable = store.$notes
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.reconcileVisibleNotesWithActiveFilter()
+            }
     }
 
     var hasVisibleNotes: Bool {
@@ -30,8 +42,31 @@ final class FloatingNotePanelManager: ObservableObject {
         visibleNoteIDs.contains(noteID)
     }
 
-    func addAndShowNote() {
-        showNote(store.addNote())
+    func addAndShowNote(color: NoteColor? = nil) {
+        showNote(store.addNote(color: color))
+    }
+
+    /// Switches the color menu context while preserving each note's Show/Hide
+    /// choice. The all-colors view therefore restores the union of every color.
+    func applyColorFilter(_ newFilter: NoteColorFilter) {
+        guard newFilter != activeColorFilter else { return }
+
+        for noteID in visibleNoteIDs {
+            panelControllers[noteID]?.hide()
+        }
+        visibleNoteIDs.removeAll()
+        restorableNoteIDs.removeAll()
+
+        activeColorFilter = newFilter
+
+        let notesToShow = desiredVisibleNoteIDs.filter { noteID in
+            guard let note = store.note(withID: noteID) else { return false }
+            return newFilter.matches(note)
+        }
+        for noteID in notesToShow {
+            panelController(for: noteID).show(activate: false)
+            visibleNoteIDs.insert(noteID)
+        }
     }
 
     func showNote(_ noteID: Note.ID) {
@@ -39,6 +74,7 @@ final class FloatingNotePanelManager: ObservableObject {
 
         let controller = panelController(for: noteID)
         restorableNoteIDs.remove(noteID)
+        desiredVisibleNoteIDs.insert(noteID)
         visibleNoteIDs.insert(noteID)
         controller.show(activate: true)
     }
@@ -47,6 +83,7 @@ final class FloatingNotePanelManager: ObservableObject {
         guard visibleNoteIDs.contains(noteID) else { return }
         panelControllers[noteID]?.hide()
         visibleNoteIDs.remove(noteID)
+        desiredVisibleNoteIDs.remove(noteID)
     }
 
     func toggleNoteVisibility(_ noteID: Note.ID) {
@@ -79,8 +116,9 @@ final class FloatingNotePanelManager: ObservableObject {
     }
 
     func restorePreviouslyVisibleNotes() {
-        let noteIDsToRestore = restorableNoteIDs.filter {
-            store.note(withID: $0) != nil
+        let noteIDsToRestore = restorableNoteIDs.filter { noteID in
+            guard let note = store.note(withID: noteID) else { return false }
+            return activeColorFilter.matches(note)
         }
         restorableNoteIDs.removeAll()
 
@@ -91,9 +129,37 @@ final class FloatingNotePanelManager: ObservableObject {
         }
     }
 
+    /// Keeps floating windows aligned when an open note changes color while a
+    /// specific color filter is selected.
+    private func reconcileVisibleNotesWithActiveFilter() {
+        desiredVisibleNoteIDs = Set(desiredVisibleNoteIDs.filter {
+            store.note(withID: $0) != nil
+        })
+        restorableNoteIDs = Set(restorableNoteIDs.filter {
+            store.note(withID: $0) != nil
+        })
+
+        let notesThatShouldBeVisible = Set(desiredVisibleNoteIDs.filter { noteID in
+            guard
+                !restorableNoteIDs.contains(noteID),
+                let note = store.note(withID: noteID)
+            else { return false }
+            return activeColorFilter.matches(note)
+        })
+
+        for noteID in visibleNoteIDs.subtracting(notesThatShouldBeVisible) {
+            panelControllers[noteID]?.hide()
+        }
+        for noteID in notesThatShouldBeVisible.subtracting(visibleNoteIDs) {
+            panelController(for: noteID).show(activate: false)
+        }
+        visibleNoteIDs = notesThatShouldBeVisible
+    }
+
     func deleteNote(_ noteID: Note.ID) {
         visibleNoteIDs.remove(noteID)
         restorableNoteIDs.remove(noteID)
+        desiredVisibleNoteIDs.remove(noteID)
         panelControllers.removeValue(forKey: noteID)?.closePermanently()
         store.delete(noteID)
     }
@@ -105,6 +171,8 @@ final class FloatingNotePanelManager: ObservableObject {
         panelControllers.removeAll()
         visibleNoteIDs.removeAll()
         restorableNoteIDs.removeAll()
+        desiredVisibleNoteIDs.removeAll()
+        activeColorFilter = .all
     }
 
     private func panelController(for noteID: Note.ID) -> FloatingNotePanelController {
@@ -115,6 +183,7 @@ final class FloatingNotePanelManager: ObservableObject {
         let controller = FloatingNotePanelController(
             noteID: noteID,
             store: store,
+            panelState: panelState,
             initialFrame: restoredFrame(for: noteID) ?? initialFrame(),
             onDelete: { [weak self] in
                 self?.deleteNote(noteID)
@@ -141,6 +210,7 @@ final class FloatingNotePanelManager: ObservableObject {
     private func notePanelDidClose(_ noteID: Note.ID) {
         visibleNoteIDs.remove(noteID)
         restorableNoteIDs.remove(noteID)
+        desiredVisibleNoteIDs.remove(noteID)
         panelControllers.removeValue(forKey: noteID)
     }
 

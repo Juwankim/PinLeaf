@@ -45,8 +45,8 @@ final class NoteStore: ObservableObject {
     }
 
     @discardableResult
-    func addNote() -> Note.ID {
-        let note = Note(title: "새 노트", displayMode: .edit)
+    func addNote(color: NoteColor? = nil) -> Note.ID {
+        let note = Note(title: "새 노트", color: color, displayMode: .edit)
         notes.insert(note, at: 0)
         scheduleSave()
         return note.id
@@ -85,6 +85,12 @@ final class NoteStore: ObservableObject {
     func updateDisplayMode(_ displayMode: NoteDisplayMode, for id: Note.ID) {
         update(id, touchUpdatedAt: false) { note in
             note.displayMode = displayMode
+        }
+    }
+
+    func updateAlwaysOnTop(_ isAlwaysOnTop: Bool, for id: Note.ID) {
+        update(id, touchUpdatedAt: false) { note in
+            note.isAlwaysOnTop = isAlwaysOnTop
         }
     }
 

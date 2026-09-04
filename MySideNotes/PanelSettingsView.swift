@@ -9,6 +9,13 @@ struct PanelSettingsView: View {
     @ObservedObject var panelState: PanelPresentationState
 
     var body: some View {
+        ScrollView {
+            settingsContent
+        }
+        .frame(width: 320)
+    }
+
+    private var settingsContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("노트 목록 패널")
                 .font(.headline)
@@ -40,6 +47,10 @@ struct PanelSettingsView: View {
 
                 Slider(value: panelWidthBinding, in: 180...350, step: 10)
                     .controlSize(.regular)
+
+                Text("패널이 펼쳐졌을 때만 적용됩니다. 접혔을 때는 아래 ‘접힌 상태 노출 너비’만 적용됩니다.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
 
             Toggle(isOn: showsDockIconBinding) {
@@ -71,18 +82,68 @@ struct PanelSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("구분")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Text("기본")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                ForEach(NoteColor.allCases) { color in
+                    HStack(spacing: 8) {
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(color.backgroundColor)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                    .stroke(Color.black.opacity(0.18), lineWidth: 1)
+                            )
+                            .frame(width: 32, height: 16)
+
+                        TextField(
+                            color.displayName,
+                            text: colorNameBinding(for: color)
+                        )
+                        .textFieldStyle(.roundedBorder)
+
+                        Button {
+                            panelState.setDefaultNoteColor(color)
+                        } label: {
+                            Image(
+                                systemName: panelState.defaultNoteColor == color
+                                    ? "checkmark.circle.fill"
+                                    : "circle"
+                            )
+                            .font(.system(size: 16))
+                            .foregroundStyle(
+                                panelState.defaultNoteColor == color
+                                    ? Color.accentColor
+                                    : Color.secondary
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .help("새 노트 기본 색상으로 설정")
+                    }
+                }
+
+                Text("‘구분’ 이름은 왼쪽 패널 색상 메뉴와 목록에 표시됩니다. ‘기본’으로 표시한 색상은 목록에서 ‘전체 색상’일 때 새 노트에 사용됩니다.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
             Divider()
 
             settingSlider(
-                title: "비활성 투명도",
-                value: inactiveOpacityBinding,
-                range: 0.10...0.90
-            )
-
-            settingSlider(
-                title: "접힌 상태 노출 비율",
-                value: collapsedVisibleFractionBinding,
-                range: 0.05...0.30
+                title: "접힌 상태 노출 너비",
+                value: collapsedPeekWidthBinding,
+                range: 2...20,
+                step: 1,
+                valueLabel: { "\(Int($0.rounded())) pt" }
             )
 
             Divider()
@@ -101,13 +162,6 @@ struct PanelSettingsView: View {
         )
     }
 
-    private var inactiveOpacityBinding: Binding<Double> {
-        Binding(
-            get: { panelState.inactiveOpacity },
-            set: { panelState.setInactiveOpacity($0) }
-        )
-    }
-
     private var showsDockIconBinding: Binding<Bool> {
         Binding(
             get: { panelState.showsDockIcon },
@@ -115,10 +169,10 @@ struct PanelSettingsView: View {
         )
     }
 
-    private var collapsedVisibleFractionBinding: Binding<Double> {
+    private var collapsedPeekWidthBinding: Binding<Double> {
         Binding(
-            get: { panelState.collapsedVisibleFraction },
-            set: { panelState.setCollapsedVisibleFraction($0) }
+            get: { panelState.collapsedPeekWidth },
+            set: { panelState.setCollapsedPeekWidth($0) }
         )
     }
 
@@ -136,10 +190,21 @@ struct PanelSettingsView: View {
         )
     }
 
+    private func colorNameBinding(for color: NoteColor) -> Binding<String> {
+        Binding(
+            get: { panelState.colorName(for: color) },
+            set: { panelState.setColorName($0, for: color) }
+        )
+    }
+
     private func settingSlider(
         title: String,
         value: Binding<Double>,
-        range: ClosedRange<Double>
+        range: ClosedRange<Double>,
+        step: Double = 0.01,
+        valueLabel: @escaping (Double) -> String = { value in
+            value.formatted(.percent.precision(.fractionLength(0)))
+        }
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -149,11 +214,11 @@ struct PanelSettingsView: View {
 
                 Spacer()
 
-                Text(value.wrappedValue, format: .percent.precision(.fractionLength(0)))
+                Text(valueLabel(value.wrappedValue))
                     .font(.caption.monospacedDigit())
             }
 
-            Slider(value: value, in: range, step: 0.01)
+            Slider(value: value, in: range, step: step)
                 .controlSize(.regular)
         }
     }
